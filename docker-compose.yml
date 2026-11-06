@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-oxide_monitor}
+      POSTGRES_USER: ${POSTGRES_USER:-oxide}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oxide_dev}
+    ports: ["${POSTGRES_PORT:-55432}:5432"]
+    volumes:
+      - oxide_candidate_pg:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-oxide} -d ${POSTGRES_DB:-oxide_monitor}"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+  simulator:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["node", "server.js"]
+    volumes: ["./simulator:/app:ro"]
+    expose: ["8788"]
+  api:
+    build: .
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:-oxide}:${POSTGRES_PASSWORD:-oxide_dev}@postgres:5432/${POSTGRES_DB:-oxide_monitor}
+      SIMULATOR_URL: http://simulator:8788
+      HEARTBEAT_TIMEOUT_MS: ${HEARTBEAT_TIMEOUT_MS:-30000}
+      ORDER_LEASE_MS: ${ORDER_LEASE_MS:-60000}
+      BOT_POLL_MS: ${BOT_POLL_MS:-5000}
+      PACKAGE_DIR: /data/packages
+      NODE_ENV: production
+    ports: ["${API_PORT:-3000}:3000"]
+    volumes: ["oxide_packages:/data/packages"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      simulator: {condition: service_started}
+volumes:
+  oxide_candidate_pg:
+  oxide_packages:

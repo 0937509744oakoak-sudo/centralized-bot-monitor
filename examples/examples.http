@@ -1,0 +1,54 @@
+@base = http://localhost:3000
+@bot = bot-01
+
+### Health / overview
+GET {{base}}/health
+GET {{base}}/api/v1/overview
+GET {{base}}/api/v1/bots
+
+### Bot control
+POST {{base}}/api/v1/bots/{{bot}}/commands
+Content-Type: application/json
+Idempotency-Key: bot-01-restart-001
+X-Actor: local-operator
+
+{"command":"restart"}
+
+### Kill switch
+POST {{base}}/api/v1/system/kill-switch
+Content-Type: application/json
+
+{"enabled":false}
+
+### Create an order, then confirm payment to queue it
+POST {{base}}/api/v1/orders
+Content-Type: application/json
+Idempotency-Key: demo-order-1001
+
+{"externalOrderId":"DEMO-1001","amount":1250,"currency":"THB","payload":{"sku":"demo"}}
+
+POST {{base}}/api/v1/orders/DEMO-1001/pay
+Content-Type: application/json
+
+{"provider":"demo"}
+
+### Atomic order claim
+POST {{base}}/api/v1/orders/claim
+Content-Type: application/json
+
+{"botId":"bot-01"}
+
+### Finish an order using its numeric id
+POST {{base}}/api/v1/orders/1/complete
+Content-Type: application/json
+
+{"status":"COMPLETED","result":{"reference":"demo-ref"}}
+
+### Inspect
+GET {{base}}/api/v1/orders
+GET {{base}}/api/v1/bots/{{bot}}/logs
+GET {{base}}/api/v1/audit
+GET {{base}}/api/v1/deployments
+
+### Package upload: curl -F "version=1.0.1" -F "file=@./bot.zip" http://localhost:3000/api/v1/deployments/packages
+### Deploy: POST /api/v1/deployments {"packageId":1,"botId":"bot-01"} (omit botId for all enabled bots)

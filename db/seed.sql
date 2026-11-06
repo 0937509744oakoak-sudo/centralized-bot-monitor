@@ -1,0 +1,4 @@
+INSERT INTO oxide_bot_agents(id,name,device_name,status,work_state,cpu_percent,memory_percent,uptime_seconds,last_heartbeat)
+VALUES ('bot-01','Oxide Bot 01','oxide-worker-01','online','standby',18.4,41.2,86400,now()),('bot-02','Oxide Bot 02','oxide-worker-02','online','in_progress',7.1,33.8,4200,now()),('bot-03','Oxide Bot 03','oxide-worker-03','offline','standby',0,0,0,now()-interval '10 minutes') ON CONFLICT(id) DO NOTHING;
+INSERT INTO orders(external_order_id,status,amount,currency,payload) VALUES ('TEST-ORDER-001','IN_PROGRESS',1250,'THB','{"demo":true}'),('TEST-ORDER-002','QUEUED',499,'THB','{"demo":true}') ON CONFLICT(external_order_id) DO NOTHING;
+INSERT INTO order_events(order_id,event_type,payload) SELECT id,'seeded','{"source":"seed"}' FROM orders WHERE external_order_id IN ('TEST-ORDER-001','TEST-ORDER-002') AND NOT EXISTS(SELECT 1 FROM order_events e WHERE e.order_id=orders.id);
